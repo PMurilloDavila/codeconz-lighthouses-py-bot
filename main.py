@@ -60,14 +60,14 @@ class BotGame:
         for lh in turn.Lighthouses:
             lighthouses[(lh.Position.X, lh.Position.Y)] = lh
 
-        # chosen_cluster = self.choose_lh_cluster(lighthouses)
-        # #chosen_cluster = Cluster([[0,15],[0,1],[0,2]])
-        #
-        # if not self.check_inside_cluster(chosen_cluster, cx, cy):
-        #     # If we are inside a cluster, move towards the cluster center
-        #     action = self.move_toward_cluster(turn, chosen_cluster, cx, cy)
-        # else:
-        action = self.act_inside_cluster(turn, cx, cy, lighthouses)
+        chosen_cluster = self.choose_lh_cluster(lighthouses)
+        #chosen_cluster = Cluster([[0,15],[0,1],[0,2]])
+
+        if not self.check_inside_cluster(chosen_cluster, cx, cy):
+            # If we are inside a cluster, move towards the cluster center
+            action = self.move_toward_cluster(turn, chosen_cluster, cx, cy)
+        else:
+            action = self.act_inside_cluster(turn, cx, cy, lighthouses)
 
         bgt = BotGameTurn(turn, action)
         self.turn_states.append(bgt)
@@ -77,72 +77,72 @@ class BotGame:
 
 
 
-    # def choose_lh_cluster(self, lighthouses: dict[tuple[int, int], game_pb2.Lighthouse]) -> Cluster | None:
-    #     # Choose a lighthouse cluster based on proximity criteria
-    #     if not lighthouses:
-    #         return None
-    #     # slice the first 5 lighthouses into another list
-    #     selected_lh: list[game_pb2.Lighthouse] = list(lighthouses.values())[:5]
-    #     rest_lh = list(lighthouses.values())[5:]
-    #     triangles = dict()
-    #
-    #     # For each lighthouse in the selected_lh, find the 2 closest lighthouses from rest_lh
-    #     for lh in selected_lh:
-    #         # calculate the distance to the rest of the lighthouses
-    #         distances = dict()
-    #         for rest in rest_lh:
-    #             distances[rest.Position] = ((lh.Position.X - rest.Position.X) ** 2 + (lh.Position.Y - rest.Position.Y) ** 2) ** 0.5
-    #         # take the 2 closest lighthouses
-    #         closest_lighthouses = [key for key, _ in sorted(distances.items(), key=lambda x: x[1])[:2]]
-    #         triangles[selected_lh] = [lh.Position] + closest_lighthouses
-    #         # remove the lighthouses from the rest_lh list
-    #         rest_lh = [rest for rest in rest_lh if rest.Position not in closest_lighthouses]
-    #
-    #     # choose the smallest triangle calculating each area
-    #     smallest_triangle = None
-    #     smallest_area = float('inf')
-    #     for lh, triangle in triangles.items():
-    #         # Calculate the area of the triangle using the formula:
-    #         # Area = 0.5 * |x1(y2 - y3) + x2(y3 - y1) + x3(y1 - y2)|
-    #         x1, y1 = triangle[0].X, triangle[0].Y
-    #         x2, y2 = triangle[1].X, triangle[1].Y
-    #         x3, y3 = triangle[2].X, triangle[2].Y
-    #         area = abs(0.5 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)))
-    #         if area < smallest_area:
-    #             smallest_area = area
-    #             smallest_triangle = triangle
-    #
-    #     return Cluster(smallest_triangle)
-    #
-    # def check_inside_cluster(self, cluster: Cluster, cx: int, cy: int):
-    #     if not cluster:
-    #         return False
-    #     bounds = cluster.get_bounds()
-    #     if (bounds["x_bottom"] <= cx <= bounds["x_top"] and
-    #             bounds["y_bottom"] <= cy <= bounds["y_top"]):
-    #         return True
-    #     return False
-    #
-    # def move_toward_cluster(self, turn: game_pb2.NewTurn, our_cluster: Cluster, cx: int, cy: int):
-    #     x_dir = 0
-    #     y_dir = 0
-    #     bounds = our_cluster.get_bounds()
-    #     if cx < bounds["x_bottom"]:
-    #         x_dir = 1
-    #     if cx > bounds["x_top"]:
-    #         x_dir = -1
-    #     if cy < bounds["y_bottom"]:
-    #         y_dir = 1
-    #     if cy > bounds["y_top"]:
-    #         y_dir = -1
-    #
-    #     action = game_pb2.NewAction(
-    #         Action=game_pb2.MOVE,
-    #         Destination=game_pb2.Position(
-    #             X=turn.Position.X + x_dir, Y=turn.Position.Y + y_dir
-    #         ),
-    #     )
-    #     return action
+    def choose_lh_cluster(self, lighthouses: dict[tuple[int, int], game_pb2.Lighthouse]) -> Cluster | None:
+        # Choose a lighthouse cluster based on proximity criteria
+        if not lighthouses:
+            return None
+        # slice the first 5 lighthouses into another list
+        selected_lh: list[game_pb2.Lighthouse] = list(lighthouses.values())[:5]
+        rest_lh = list(lighthouses.values())[5:]
+        triangles = dict()
+
+        # For each lighthouse in the selected_lh, find the 2 closest lighthouses from rest_lh
+        for lh in selected_lh:
+            # calculate the distance to the rest of the lighthouses
+            distances = dict()
+            for rest in rest_lh:
+                distances[rest.Position] = ((lh.Position.X - rest.Position.X) ** 2 + (lh.Position.Y - rest.Position.Y) ** 2) ** 0.5
+            # take the 2 closest lighthouses
+            closest_lighthouses = [key for key, _ in sorted(distances.items(), key=lambda x: x[1])[:2]]
+            triangles[selected_lh] = [lh.Position] + closest_lighthouses
+            # remove the lighthouses from the rest_lh list
+            rest_lh = [rest for rest in rest_lh if rest.Position not in closest_lighthouses]
+
+        # choose the smallest triangle calculating each area
+        smallest_triangle = None
+        smallest_area = float('inf')
+        for lh, triangle in triangles.items():
+            # Calculate the area of the triangle using the formula:
+            # Area = 0.5 * |x1(y2 - y3) + x2(y3 - y1) + x3(y1 - y2)|
+            x1, y1 = triangle[0].X, triangle[0].Y
+            x2, y2 = triangle[1].X, triangle[1].Y
+            x3, y3 = triangle[2].X, triangle[2].Y
+            area = abs(0.5 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)))
+            if area < smallest_area:
+                smallest_area = area
+                smallest_triangle = triangle
+
+        return Cluster(smallest_triangle)
+
+    def check_inside_cluster(self, cluster: Cluster, cx: int, cy: int):
+        if not cluster:
+            return False
+        bounds = cluster.get_bounds()
+        if (bounds["x_bottom"] <= cx <= bounds["x_top"] and
+                bounds["y_bottom"] <= cy <= bounds["y_top"]):
+            return True
+        return False
+
+    def move_toward_cluster(self, turn: game_pb2.NewTurn, our_cluster: Cluster, cx: int, cy: int):
+        x_dir = 0
+        y_dir = 0
+        bounds = our_cluster.get_bounds()
+        if cx < bounds["x_bottom"]:
+            x_dir = 1
+        if cx > bounds["x_top"]:
+            x_dir = -1
+        if cy < bounds["y_bottom"]:
+            y_dir = 1
+        if cy > bounds["y_top"]:
+            y_dir = -1
+
+        action = game_pb2.NewAction(
+            Action=game_pb2.MOVE,
+            Destination=game_pb2.Position(
+                X=turn.Position.X + x_dir, Y=turn.Position.Y + y_dir
+            ),
+        )
+        return action
 
     def act_inside_cluster(self, turn: game_pb2.NewTurn, cx: int, cy: int, lighthouses: dict[tuple[int, int], game_pb2.Lighthouse]):
         # Si estamos en un faro...
