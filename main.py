@@ -14,7 +14,7 @@ timeout_to_response = 1  # 1 second
 
 
 class Cluster:
-    def __init__(self, lighthouse_coords: list[int]):
+    def __init__(self, lighthouse_coords: list[list[int]]):
         if len(lighthouse_coords) != 3:
             raise ValueError("A cluster must contain exactly 3 lighthouses.")
 
@@ -60,8 +60,8 @@ class BotGame:
         for lh in turn.Lighthouses:
             lighthouses[(lh.Position.X, lh.Position.Y)] = lh
 
-        chosen_cluster = self.choose_lh_cluster(lighthouses)
-        #chosen_cluster = Cluster([[0,15],[0,1],[0,2]])
+        #chosen_cluster = self.choose_lh_cluster(lighthouses)
+        chosen_cluster = Cluster([[0,15],[10,1],[2,2]])
 
         if not self.check_inside_cluster(chosen_cluster, cx, cy):
             # If we are inside a cluster, move towards the cluster center
