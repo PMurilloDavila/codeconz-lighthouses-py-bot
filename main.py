@@ -13,6 +13,33 @@ from internal.handler.coms import game_pb2_grpc as game_grpc
 timeout_to_response = 1  # 1 second
 
 
+class Cluster:
+    def __init__(self, lighthouse_coords: list[int]):
+        if len(lighthouse_coords) != 3:
+            raise ValueError("A cluster must contain exactly 3 lighthouses.")
+
+        self.lighthouses = lighthouse_coords
+
+        xs = [coord[0] for coord in lighthouse_coords]
+        ys = [coord[1] for coord in lighthouse_coords]
+
+        self.x_top = max(xs)
+        self.x_bottom = min(xs)
+        self.y_top = max(ys)
+        self.y_bottom = min(ys)
+
+    def get_bounds(self):
+        """
+        Returns the bounding rectangle as a dictionary.
+        """
+        return {
+            "x_top": self.x_top,
+            "x_bottom": self.x_bottom,
+            "y_top": self.y_top,
+            "y_bottom": self.y_bottom
+        }
+
+
 class BotGameTurn:
     def __init__(self, turn, action):
         self.turn = turn
@@ -36,11 +63,11 @@ class BotGame:
         chosen_triangle = self.choose_lh_cluster(lighthouses)
         #chosen_triangle = Cluster([[0,15],[0,1],[0,2]])
 
-        if not check_inside_cluster(chosen_triangle, cx, cy):
+        if not self.check_inside_cluster(chosen_triangle, cx, cy):
             # If we are inside a cluster, move towards the cluster center
-            action = self.move_toward_cluster(chosen_triangle, cx, cy)
+            action = self.move_toward_cluster(turn, chosen_triangle, cx, cy)
         else:
-            action = self.act_inside_cluster(cx, cy)
+            action = self.act_inside_cluster(turn, cx, cy, lighthouses)
 
         bgt = BotGameTurn(turn, action)
         self.turn_states.append(bgt)
@@ -48,35 +75,6 @@ class BotGame:
         self.countT += 1
         return action
 
-    class Cluster:
-        def __init__(self, lighthouse_coords):
-            if len(lighthouse_coords) != 3:
-                raise ValueError("A cluster must contain exactly 3 lighthouses.")
-
-            self.lighthouses = lighthouse_coords
-
-            xs = [coord[0] for coord in lighthouse_coords]
-            ys = [coord[1] for coord in lighthouse_coords]
-
-            self.x_top = max(xs)
-            self.x_bottom = min(xs)
-            self.y_top = max(ys)
-            self.y_bottom = min(ys)
-
-        def get_bounds(self):
-            """
-            Returns the bounding rectangle as a dictionary.
-            """
-            return {
-                "x_top": self.x_top,
-                "x_bottom": self.x_bottom,
-                "y_top": self.y_top,
-                "y_bottom": self.y_bottom
-            }
-
-        def __repr__(self):
-            return (f"Cluster(x_top={self.x_top}, x_bottom={self.x_bottom}, "
-                    f"y_top={self.y_top}, y_bottom={self.y_bottom})")
 
 
     def choose_lh_cluster(self, lighthouses: dict[str, game_pb2.Lighthouse]):
@@ -84,14 +82,14 @@ class BotGame:
         if not lighthouses:
             return None
         # slice the first 5 lighthouses into another list
-        selected_lh = list(lighthouses.values())[:5]
+        selected_lh: list[game_pb2.Lighthouse] = list(lighthouses.values())[:5]
         rest_lh = list(lighthouses.values())[5:]
-        triangles = {}
+        triangles = dict()
 
         # For each lighthouse in the selected_lh, find the 2 closest lighthouses from rest_lh
         for lh in selected_lh:
             # calculate the distance to the rest of the lighthouses
-            distances = {}
+            distances = dict()
             for rest in rest_lh:
                 distances[rest.Position] = ((lh.Position.X - rest.Position.X) ** 2 + (lh.Position.Y - rest.Position.Y) ** 2) ** 0.5
             # take the 2 closest lighthouses
@@ -125,7 +123,7 @@ class BotGame:
             return True
         return False
 
-    def move_toward_cluster(self, our_cluster, cx, cy):
+    def move_toward_cluster(self, turn, our_cluster, cx, cy):
         x_dir = 0
         y_dir = 0
         bounds = our_cluster.get_bounds()
@@ -146,7 +144,7 @@ class BotGame:
         )
         return action
 
-    def act_inside_cluster(self, cx, cy):
+    def act_inside_cluster(self, turn, cx, cy, lighthouses):
         # Si estamos en un faro...
         if (cx, cy) in lighthouses:
             # Conectar con faro remoto válido si podemos
