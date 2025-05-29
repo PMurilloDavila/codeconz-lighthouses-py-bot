@@ -61,7 +61,7 @@ class BotGame:
             lighthouses[(lh.Position.X, lh.Position.Y)] = lh
 
         #chosen_cluster = self.choose_lh_cluster(lighthouses)
-        chosen_cluster = Cluster([[0,15],[10,1],[2,2]])
+        chosen_cluster = Cluster([[12,15],[10,7],[13,7]])
 
         if not self.check_inside_cluster(chosen_cluster, cx, cy):
             # If we are inside a cluster, move towards the cluster center
@@ -77,42 +77,42 @@ class BotGame:
 
 
 
-    def choose_lh_cluster(self, lighthouses: dict[tuple[int, int], game_pb2.Lighthouse]) -> Cluster | None:
-        # Choose a lighthouse cluster based on proximity criteria
-        if not lighthouses:
-            return None
-        # slice the first 5 lighthouses into another list
-        selected_lh: list[game_pb2.Lighthouse] = list(lighthouses.values())[:5]
-        rest_lh = list(lighthouses.values())[5:]
-        triangles = dict()
-
-        # For each lighthouse in the selected_lh, find the 2 closest lighthouses from rest_lh
-        for lh in selected_lh:
-            # calculate the distance to the rest of the lighthouses
-            distances = dict()
-            for rest in rest_lh:
-                distances[rest.Position] = ((lh.Position.X - rest.Position.X) ** 2 + (lh.Position.Y - rest.Position.Y) ** 2) ** 0.5
-            # take the 2 closest lighthouses
-            closest_lighthouses = [key for key, _ in sorted(distances.items(), key=lambda x: x[1])[:2]]
-            triangles[selected_lh] = [lh.Position] + closest_lighthouses
-            # remove the lighthouses from the rest_lh list
-            rest_lh = [rest for rest in rest_lh if rest.Position not in closest_lighthouses]
-
-        # choose the smallest triangle calculating each area
-        smallest_triangle = None
-        smallest_area = float('inf')
-        for lh, triangle in triangles.items():
-            # Calculate the area of the triangle using the formula:
-            # Area = 0.5 * |x1(y2 - y3) + x2(y3 - y1) + x3(y1 - y2)|
-            x1, y1 = triangle[0].X, triangle[0].Y
-            x2, y2 = triangle[1].X, triangle[1].Y
-            x3, y3 = triangle[2].X, triangle[2].Y
-            area = abs(0.5 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)))
-            if area < smallest_area:
-                smallest_area = area
-                smallest_triangle = triangle
-
-        return Cluster(smallest_triangle)
+    # def choose_lh_cluster(self, lighthouses: dict[tuple[int, int], game_pb2.Lighthouse]) -> Cluster | None:
+    #     # Choose a lighthouse cluster based on proximity criteria
+    #     if not lighthouses:
+    #         return None
+    #     # slice the first 5 lighthouses into another list
+    #     selected_lh: list[game_pb2.Lighthouse] = list(lighthouses.values())[:5]
+    #     rest_lh = list(lighthouses.values())[5:]
+    #     triangles = dict()
+    # 
+    #     # For each lighthouse in the selected_lh, find the 2 closest lighthouses from rest_lh
+    #     for lh in selected_lh:
+    #         # calculate the distance to the rest of the lighthouses
+    #         distances = dict()
+    #         for rest in rest_lh:
+    #             distances[rest.Position] = ((lh.Position.X - rest.Position.X) ** 2 + (lh.Position.Y - rest.Position.Y) ** 2) ** 0.5
+    #         # take the 2 closest lighthouses
+    #         closest_lighthouses = [key for key, _ in sorted(distances.items(), key=lambda x: x[1])[:2]]
+    #         triangles[selected_lh] = [lh.Position] + closest_lighthouses
+    #         # remove the lighthouses from the rest_lh list
+    #         rest_lh = [rest for rest in rest_lh if rest.Position not in closest_lighthouses]
+    # 
+    #     # choose the smallest triangle calculating each area
+    #     smallest_triangle = None
+    #     smallest_area = float('inf')
+    #     for lh, triangle in triangles.items():
+    #         # Calculate the area of the triangle using the formula:
+    #         # Area = 0.5 * |x1(y2 - y3) + x2(y3 - y1) + x3(y1 - y2)|
+    #         x1, y1 = triangle[0].X, triangle[0].Y
+    #         x2, y2 = triangle[1].X, triangle[1].Y
+    #         x3, y3 = triangle[2].X, triangle[2].Y
+    #         area = abs(0.5 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)))
+    #         if area < smallest_area:
+    #             smallest_area = area
+    #             smallest_triangle = triangle
+    # 
+    #     return Cluster(smallest_triangle)
 
     def check_inside_cluster(self, cluster: Cluster, cx: int, cy: int):
         if not cluster:
