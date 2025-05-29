@@ -60,14 +60,14 @@ class BotGame:
         for lh in turn.Lighthouses:
             lighthouses[(lh.Position.X, lh.Position.Y)] = lh
 
-        chosen_triangle = self.choose_lh_cluster(lighthouses)
-        #chosen_triangle = Cluster([[0,15],[0,1],[0,2]])
-
-        if not self.check_inside_cluster(chosen_triangle, cx, cy):
-            # If we are inside a cluster, move towards the cluster center
-            action = self.move_toward_cluster(turn, chosen_triangle, cx, cy)
-        else:
-            action = self.act_inside_cluster(turn, cx, cy, lighthouses)
+        # chosen_cluster = self.choose_lh_cluster(lighthouses)
+        # #chosen_cluster = Cluster([[0,15],[0,1],[0,2]])
+        #
+        # if not self.check_inside_cluster(chosen_cluster, cx, cy):
+        #     # If we are inside a cluster, move towards the cluster center
+        #     action = self.move_toward_cluster(turn, chosen_cluster, cx, cy)
+        # else:
+        action = self.act_inside_cluster(turn, cx, cy, lighthouses)
 
         bgt = BotGameTurn(turn, action)
         self.turn_states.append(bgt)
@@ -77,7 +77,7 @@ class BotGame:
 
 
 
-    def choose_lh_cluster(self, lighthouses: dict[str, game_pb2.Lighthouse]):
+    def choose_lh_cluster(self, lighthouses: dict[tuple[int, int], game_pb2.Lighthouse]) -> Cluster | None:
         # Choose a lighthouse cluster based on proximity criteria
         if not lighthouses:
             return None
@@ -114,16 +114,16 @@ class BotGame:
 
         return Cluster(smallest_triangle)
 
-    def check_inside_cluster(self, chosen_triangle, cx, cy):
-        if not chosen_triangle:
+    def check_inside_cluster(self, cluster: Cluster, cx: int, cy: int):
+        if not cluster:
             return False
-        bounds = chosen_triangle.get_bounds()
+        bounds = cluster.get_bounds()
         if (bounds["x_bottom"] <= cx <= bounds["x_top"] and
                 bounds["y_bottom"] <= cy <= bounds["y_top"]):
             return True
         return False
 
-    def move_toward_cluster(self, turn, our_cluster, cx, cy):
+    def move_toward_cluster(self, turn: game_pb2.NewTurn, our_cluster: Cluster, cx: int, cy: int):
         x_dir = 0
         y_dir = 0
         bounds = our_cluster.get_bounds()
@@ -144,7 +144,7 @@ class BotGame:
         )
         return action
 
-    def act_inside_cluster(self, turn, cx, cy, lighthouses):
+    def act_inside_cluster(self, turn: game_pb2.NewTurn, cx: int, cy: int, lighthouses: dict[tuple[int, int], game_pb2.Lighthouse]):
         # Si estamos en un faro...
         if (cx, cy) in lighthouses:
             # Conectar con faro remoto válido si podemos
