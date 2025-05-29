@@ -34,12 +34,13 @@ class BotGame:
             lighthouses[(lh.Position.X, lh.Position.Y)] = lh
 
         chosen_triangle = self.choose_lh_cluster(lighthouses)
+        #chosen_triangle = Cluster([[0,15],[0,1],[0,2]])
 
         if not check_inside_cluster(chosen_triangle, cx, cy):
             # If we are inside a cluster, move towards the cluster center
             action = self.move_toward_cluster(chosen_triangle, cx, cy)
         else:
-           action = self.act_inside_cluster(cx, cy)
+            action = self.act_inside_cluster(cx, cy)
 
         bgt = BotGameTurn(turn, action)
         self.turn_states.append(bgt)
