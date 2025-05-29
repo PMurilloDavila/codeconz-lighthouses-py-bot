@@ -33,6 +33,119 @@ class BotGame:
         for lh in turn.Lighthouses:
             lighthouses[(lh.Position.X, lh.Position.Y)] = lh
 
+        chosen_triangle = self.choose_lh_cluster(lighthouses)
+
+        if not check_inside_cluster(chosen_triangle, cx, cy):
+            # If we are inside a cluster, move towards the cluster center
+            action = self.move_toward_cluster(chosen_triangle, cx, cy)
+        else:
+           action = self.act_inside_cluster(cx, cy)
+
+        bgt = BotGameTurn(turn, action)
+        self.turn_states.append(bgt)
+
+        self.countT += 1
+        return action
+
+    class Cluster:
+        def __init__(self, lighthouse_coords):
+            if len(lighthouse_coords) != 3:
+                raise ValueError("A cluster must contain exactly 3 lighthouses.")
+
+            self.lighthouses = lighthouse_coords
+
+            xs = [coord[0] for coord in lighthouse_coords]
+            ys = [coord[1] for coord in lighthouse_coords]
+
+            self.x_top = max(xs)
+            self.x_bottom = min(xs)
+            self.y_top = max(ys)
+            self.y_bottom = min(ys)
+
+        def get_bounds(self):
+            """
+            Returns the bounding rectangle as a dictionary.
+            """
+            return {
+                "x_top": self.x_top,
+                "x_bottom": self.x_bottom,
+                "y_top": self.y_top,
+                "y_bottom": self.y_bottom
+            }
+
+        def __repr__(self):
+            return (f"Cluster(x_top={self.x_top}, x_bottom={self.x_bottom}, "
+                    f"y_top={self.y_top}, y_bottom={self.y_bottom})")
+
+
+    def choose_lh_cluster(self, lighthouses: dict[str, game_pb2.Lighthouse]):
+        # Choose a lighthouse cluster based on proximity criteria
+        if not lighthouses:
+            return None
+        # slice the first 5 lighthouses into another list
+        selected_lh = list(lighthouses.values())[:5]
+        rest_lh = list(lighthouses.values())[5:]
+        triangles = {}
+
+        # For each lighthouse in the selected_lh, find the 2 closest lighthouses from rest_lh
+        for lh in selected_lh:
+            # calculate the distance to the rest of the lighthouses
+            distances = {}
+            for rest in rest_lh:
+                distances[rest.Position] = ((lh.Position.X - rest.Position.X) ** 2 + (lh.Position.Y - rest.Position.Y) ** 2) ** 0.5
+            # take the 2 closest lighthouses
+            closest_lighthouses = [key for key, _ in sorted(distances.items(), key=lambda x: x[1])[:2]]
+            triangles[selected_lh] = [lh.Position] + closest_lighthouses
+            # remove the lighthouses from the rest_lh list
+            rest_lh = [rest for rest in rest_lh if rest.Position not in closest_lighthouses]
+
+        # choose the smallest triangle calculating each area
+        smallest_triangle = None
+        smallest_area = float('inf')
+        for lh, triangle in triangles.items():
+            # Calculate the area of the triangle using the formula:
+            # Area = 0.5 * |x1(y2 - y3) + x2(y3 - y1) + x3(y1 - y2)|
+            x1, y1 = triangle[0].X, triangle[0].Y
+            x2, y2 = triangle[1].X, triangle[1].Y
+            x3, y3 = triangle[2].X, triangle[2].Y
+            area = abs(0.5 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)))
+            if area < smallest_area:
+                smallest_area = area
+                smallest_triangle = triangle
+
+        return Cluster(smallest_triangle)
+
+    def check_inside_cluster(self, chosen_triangle, cx, cy):
+        if not chosen_triangle:
+            return False
+        bounds = chosen_triangle.get_bounds()
+        if (bounds["x_bottom"] <= cx <= bounds["x_top"] and
+                bounds["y_bottom"] <= cy <= bounds["y_top"]):
+            return True
+        return False
+
+    def move_toward_cluster(self, our_cluster, cx, cy):
+        x_dir = 0
+        y_dir = 0
+        bounds = our_cluster.get_bounds()
+        if cx < bounds["x_bottom"]:
+            x_dir = 1
+        if cx > bounds["x_top"]:
+            x_dir = -1
+        if cy < bounds["y_bottom"]:
+            y_dir = 1
+        if cy > bounds["y_top"]:
+            y_dir = -1
+
+        action = game_pb2.NewAction(
+            Action=game_pb2.MOVE,
+            Destination=game_pb2.Position(
+                X=turn.Position.X + x_dir, Y=turn.Position.Y + y_dir
+            ),
+        )
+        return action
+
+    def act_inside_cluster(self, cx, cy):
         # Si estamos en un faro...
         if (cx, cy) in lighthouses:
             # Conectar con faro remoto válido si podemos
@@ -89,13 +202,7 @@ class BotGame:
                 X=turn.Position.X + move[0], Y=turn.Position.Y + move[1]
             ),
         )
-
-        bgt = BotGameTurn(turn, action)
-        self.turn_states.append(bgt)
-
-        self.countT += 1
         return action
-
 
 class BotComs:
     def __init__(self, bot_name, my_address, game_server_address, verbose=False):
@@ -144,8 +251,6 @@ class BotComs:
             grpc_server.wait_for_termination()  # wait until server finish
         except KeyboardInterrupt:
             grpc_server.stop(0)
-
-
 class ServerInterceptor(grpc.ServerInterceptor):
     def intercept_service(self, continuation, handler_call_details):
         start_time = time.time_ns()
@@ -158,8 +263,6 @@ class ServerInterceptor(grpc.ServerInterceptor):
         duration = time.time_ns() - start_time
         print(f"Unary call: {method_name}, Duration: {duration:.2f} nanoseconds")
         return response
-
-
 class ClientServer(game_grpc.GameServiceServicer):
     def __init__(self, bot_id, verbose=False):
         self.bg = BotGame(bot_id)
@@ -181,8 +284,6 @@ class ClientServer(game_grpc.GameServiceServicer):
             print(json_format.MessageToJson(request))
         action = self.bg.new_turn_action(request)
         return action
-
-
 def ensure_params():
     parser = argparse.ArgumentParser(description="Bot configuration")
     parser.add_argument("--bn", type=str, default="random-bot", help="Bot name")
@@ -217,3 +318,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#docker pull image
+#game.cfg
+#put your bot
+#terminal: ./ start-game.sh -f game.cfg
